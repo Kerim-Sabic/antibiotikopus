@@ -6,18 +6,102 @@ Horalix is a comprehensive medication management system designed for healthcare 
 
 ## 🌟 Key Features
 
-### Dual-Tier Drug Navigator
-- **Antibiotics Tab**: WHO AWaRe classification (Access, Watch, Reserve) for antibiotic stewardship
-- **Other Medications Tab**: Complete formulary organized by ATC therapeutic categories
-- Real-time search and filtering across 2025 Bosnia national formulary
+### 🔍 Clinical Workflows (Production-Ready)
 
-### Clinical Decision Support
-- Evidence-based treatment recommendations based on diagnosis
-- Patient-specific dosing (age, weight, renal/hepatic function)
-- Explainable AI - every recommendation includes clinical rationale
-- Guideline references (WHO, IDSA, local Bosnia protocols)
+#### Patient Management
+- **QR Code Patient Verification**: 13-digit national ID scanning for patient identification
+- **FHIR R4 Compliant**: Full HL7 FHIR interoperability for EHR integration
+- **Comprehensive Dashboard**: Real-time patient data with vital signs, lab results, medication history
+- **Medication Adherence Tracking**: Automatic calculation of adherence rates and missed doses
+- **Strict Data Validation**: Zod schema validation for all patient data
+- **GDPR Right to Erasure**: Complete data deletion with audit trail
 
-### Comprehensive Safety Engine
+#### Nursing MAR (Medication Administration Record)
+- **Dose Scheduling**: Auto-generation of administration schedules from prescriptions
+- **Five Rights Verification**: QR scanning for patient AND medication verification
+- **Real-Time Alerts**: Due medications, overdue doses, and adverse event tracking
+- **Administration Status Tracking**: Given/Missed/Refused/Held with timestamps
+- **Automatic Notifications**: Alerts to prescribers for multiple missed doses or adverse events
+- **Ward-Level Statistics**: Adherence rates, on-time administration, and problem patterns
+
+#### Pharmacy Dispensing Dashboard
+- **Real-Time Queue Management**: Priority-based (STAT/URGENT/ROUTINE) prescription queue
+- **Substitution Engine**: Therapeutic equivalence validation with ATC code matching
+- **Safety Re-checks**: Automatic safety validation for all substitutions
+- **Out-of-Stock Handling**: Automated prescriber notification and alternative suggestions
+- **Dispensing Analytics**: Average turnaround time, substitution rates, and workload metrics
+
+### 📊 Analytics & Reporting
+
+#### Admin Dashboard
+- **Prescribing Statistics**: Total prescriptions, top drugs, by department/prescriber
+- **Antibiotic Stewardship**: AWaRe category distribution (Access/Watch/Reserve)
+- **Compliance Metrics**: Guideline adherence rate, alert override tracking
+- **Trend Analysis**: Period-over-period comparison of prescribing patterns
+- **Real-Time Summary**: Active prescriptions, pending dispensing, due medications
+
+#### Adherence Analytics
+- **Overall Metrics**: Adherence rate, on-time rate (within 30 min), missed/refused doses
+- **By Ward Analysis**: Department-level adherence tracking
+- **By Drug Class**: Medication-specific adherence and refusal rates
+- **Problem Patterns**: Automated detection with actionable recommendations
+
+#### Pharmaceutical Analytics (Anonymized)
+- **Market Share Analysis**: Manufacturer prescription volumes and trends
+- **Therapeutic Class Breakdown**: ATC code-based distribution
+- **Time Series Data**: Daily prescription counts for trend analysis
+- **AWaRe Distribution**: Antibiotic category usage for manufacturers
+- **GDPR-Compliant**: Fully anonymized, aggregate-only data
+
+### 🔬 Clinical Decision Support
+
+#### Comprehensive Rule Database (15+ Conditions)
+**Respiratory Infections:**
+- Community-Acquired Pneumonia (outpatient/inpatient)
+- Acute Bronchitis (with antibiotic stewardship guidance)
+- Acute Sinusitis
+- Acute Otitis Media (pediatric dosing)
+
+**Urinary Tract Infections:**
+- Uncomplicated Cystitis
+- Pyelonephritis (with IV/oral options)
+
+**Skin Infections:**
+- Cellulitis (non-purulent)
+- MRSA-suspected infections
+
+**GI Infections:**
+- Clostridioides difficile colitis
+
+**Chronic Conditions:**
+- Hypertension (with ACC/AHA 2017 guidelines)
+- Type 2 Diabetes (ADA 2023 standards)
+- Asthma (GINA 2023)
+- Acute Pain Management (WHO ladder)
+
+All rules include:
+- Evidence level (A/B/C grading)
+- Guideline sources (WHO, IDSA, EMA, ADA, etc.)
+- First-line and alternative options
+- Patient-specific criteria
+- AWaRe antibiotic preference
+
+### 🔐 QR Code Verification System
+- **Patient QR**: National ID only (no other PII)
+- **Prescription QR**: Secure token-based verification (30-day expiry)
+- **Medication QR**: Prescription item verification for nursing
+- **Printable Output**: Professional prescription format with embedded QR codes
+- **Five Rights Support**: Scan-based verification for medication administration
+
+### 📱 Progressive Web App (PWA)
+- **Offline Functionality**: Service worker caching for continuity of care
+- **Cache Strategies**: Cache-first for assets, network-first for API
+- **Background Sync**: Automatic retry of failed operations when back online
+- **Push Notifications**: Real-time alerts for due medications and critical events
+- **App Shortcuts**: Quick access to prescriptions, MAR, pharmacy queue
+- **Installable**: Add to home screen on mobile devices
+
+### 🛡️ Safety Engine
 - ✅ **Allergy Checks**: Cross-sensitivity detection (e.g., penicillin → cephalosporins)
 - ⚠️ **Drug-Drug Interactions**: Real-time DDI screening with severity grading
 - 🚫 **Contraindications**: Patient condition-based warnings
@@ -25,19 +109,21 @@ Horalix is a comprehensive medication management system designed for healthcare 
 - 💊 **Dose Validation**: Age-appropriate and organ function-adjusted dosing
 - 🤰 **Pregnancy/Lactation**: Safety categorization and warnings
 - 🧓 **Age-Specific**: Pediatric and geriatric considerations
+- 🔄 **Renal/Hepatic Adjustments**: Automatic dose modification recommendations
 
-### Role-Based Access Control
-- **Doctors**: Full prescribing with decision support
-- **Nurses**: Medication administration tracking and alerts
-- **Pharmacists**: Dispensing, substitutions, and formulary management
-- **Admins**: Analytics, audit logs, and system configuration
+### 👥 Role-Based Workflows
+- **Doctors**: Prescribing with clinical decision support, safety alerts, and override justification
+- **Nurses**: MAR access, QR verification, administration tracking, adverse event reporting
+- **Pharmacists**: Dispensing queue, substitution validation, inventory management
+- **Admins**: Analytics dashboards, user management, audit logs, formulary updates
 
-### Compliance & Privacy
-- GDPR-compliant data handling
-- End-to-end encryption (TLS 1.3)
-- Comprehensive audit trail
-- Two-factor authentication (2FA)
-- Immutable logs for regulatory compliance
+### 🔒 Compliance & Privacy
+- **GDPR-Compliant**: Data minimization, consent management, right to erasure
+- **FHIR R4 Interoperability**: Patient, MedicationRequest, MedicationStatement resources
+- **End-to-End Encryption**: AES-256 at rest, TLS 1.3 in transit
+- **Two-Factor Authentication**: TOTP-based 2FA for all users
+- **Immutable Audit Trail**: Every action logged (who, what, when, why)
+- **Alert Override Tracking**: Mandatory justification for safety alert overrides
 
 ## 🏗️ Architecture
 
@@ -148,31 +234,60 @@ npm run dev
 
 ### How It Works
 
-1. Doctor enters patient diagnosis (e.g., "Community-Acquired Pneumonia")
-2. Rules engine matches diagnosis to clinical guidelines
-3. System generates recommendations considering:
+1. **Patient Intake**: Scan QR code or search by national ID → Retrieve complete medical history
+2. **Diagnosis Entry**: ICD-10 code or free text → Matches against 15+ clinical rule database
+3. **Rule Matching**: System finds evidence-based protocols considering:
    - Patient allergies, age, weight, organ function
    - Current medications (interaction checking)
    - WHO AWaRe classification (prefers Access antibiotics)
-   - Local resistance patterns
-4. Safety engine validates all recommendations
-5. Provides primary choice + alternatives with rationale
+   - Pregnancy/lactation status, comorbidities
+4. **Safety Validation**: Comprehensive checks for allergies, interactions, contraindications
+5. **Recommendation Display**: Primary choice + alternatives with full clinical rationale
+6. **Prescription Generation**: QR-embedded prescription for pharmacy/nursing verification
 
-### Example Recommendation
+### Example Clinical Workflow
+
+**Scenario**: 45-year-old male with community-acquired pneumonia, penicillin allergy
 
 ```
-Primary: Amoxicillin 500mg PO TID x 7 days
+PATIENT SCAN → QR Code Verified (National ID: 1234567890123)
+
+DIAGNOSIS: Community-Acquired Pneumonia (J18.9)
+
+SYSTEM ANALYSIS:
+✓ Patient age: 45 years (adult dosing)
+✓ Weight: 80kg → BSA: 1.98 m²
+✓ eGFR: 90 mL/min (normal renal function)
+⚠ ALLERGY: Penicillin (moderate severity)
+✓ No current medications
+✓ No contraindications
+
+RULE MATCHED: "Community-Acquired Pneumonia - Outpatient Adults"
+Guideline: WHO AWaRe 2023, IDSA/ATS CAP Guidelines 2019
+Evidence Level: A
+
+PRIMARY RECOMMENDATION:
+❌ Amoxicillin 500mg PO TID x 7 days (BLOCKED by allergy)
+
+ALTERNATIVE SELECTED:
+✅ Azithromycin 500mg PO QD x 5 days
 
 Rationale:
-✓ Access antibiotic (low resistance risk, first-line)
-✓ Covers Streptococcus pneumoniae (most common CAP pathogen)
-✓ Normal renal function - standard dosing safe
-✓ No drug interactions with current medications
-✓ Evidence: WHO AWaRe 2023, IDSA CAP Guidelines (Level A)
+• Access antibiotic (low AMR risk)
+• Covers atypical pathogens (Mycoplasma, Chlamydia)
+• Safe in penicillin allergy (no cross-sensitivity)
+• Excellent compliance (once daily, short course)
+• Evidence: WHO AWaRe 2023 (Level A)
 
-Alternatives (if needed):
-• Azithromycin 500mg PO QD x 5 days (penicillin allergy)
-• Levofloxacin 750mg PO QD x 5 days (treatment failure)
+SAFETY CHECKS:
+✅ No drug interactions
+✅ No contraindications
+✅ Dose appropriate for renal function
+✅ No pregnancy/lactation concerns
+
+[PRESCRIPTION GENERATED]
+QR Code: RX_TOKEN:a4f8b2... (valid 30 days)
+Ready for pharmacy dispensing
 ```
 
 ## 🔒 Security & Compliance
@@ -199,13 +314,99 @@ Extracts:
 - ATC codes
 - Automatic AWaRe classification for antibiotics
 
+## 🏥 Production-Grade Hospital Features
+
+### Complete Clinical Workflows
+
+**Doctor Workflow:**
+1. QR scan or search patient → View comprehensive dashboard
+2. Enter diagnosis → Receive evidence-based recommendations
+3. Review safety alerts → Override with justification if needed
+4. Generate prescription → QR-embedded for verification
+5. Track adherence → View patient compliance metrics
+
+**Nurse Workflow:**
+1. Access MAR (Medication Administration Record)
+2. View due medications with alerts
+3. QR scan patient → QR scan medication → Five-rights verification
+4. Administer or document reason (missed/refused/held)
+5. Report adverse events → Auto-notify prescriber
+
+**Pharmacist Workflow:**
+1. View priority-based dispensing queue (STAT/URGENT/ROUTINE)
+2. Check medication availability
+3. Validate substitutions with safety engine
+4. Dispense and confirm → Notify nursing
+5. Track metrics (turnaround time, substitution rate)
+
+**Admin Workflow:**
+1. Monitor real-time dashboard (active Rx, pending dispensing)
+2. Analyze prescribing patterns and AWaRe distribution
+3. Track antibiotic stewardship metrics
+4. Review adherence analytics by ward/drug class
+5. Audit alert overrides and user activity
+
+### Evidence-Based Medicine
+
+All clinical recommendations are based on:
+- **WHO Guidelines**: AWaRe antibiotic classification, Essential Medicines List
+- **IDSA**: Infectious disease treatment protocols
+- **ACC/AHA**: Cardiovascular disease management
+- **ADA**: Diabetes standards of care
+- **GINA**: Asthma management guidelines
+- **EAU**: Urology guidelines
+- **Local Bosnia Protocols**: When available
+
+### Data Security & Compliance
+
+- **Encryption**: AES-256 at rest, TLS 1.3 in transit
+- **Access Control**: Role-based with 2FA
+- **Audit Trail**: Immutable logs of all actions
+- **GDPR**: Data minimization, consent, right to erasure
+- **FHIR R4**: Interoperability standard for EHR integration
+- **No Data Selling**: Patient data never shared with third parties
+
+### Hospital Integration
+
+- **FHIR Endpoints**: Patient, MedicationRequest, MedicationStatement
+- **HL7 Compatible**: Standard healthcare data exchange
+- **Bulk Data Export**: GDPR-compliant patient data portability
+- **EHR Integration**: Ready for hospital system integration
+
 ## 🧪 Testing
 
 ```bash
-npm run test              # Unit tests
-npm run test:e2e          # Integration tests
-npm run test:coverage     # Coverage report
+# Unit tests (backend services, safety engine, rules engine)
+npm run test
+
+# Integration tests (API endpoints, database operations)
+npm run test:e2e
+
+# Frontend tests (React components, user workflows)
+cd apps/web && npm test
+
+# Coverage report
+npm run test:coverage
+
+# Seed database with test data
+cd apps/backend && npx prisma db seed
+
+# Seed clinical rules (15+ conditions)
+cd apps/backend && npx ts-node prisma/seed-clinical-rules.ts
 ```
+
+**Test Accounts:**
+```
+Doctor:      doctor@horalix.health      / password123
+Nurse:       nurse@horalix.health       / password123
+Pharmacist:  pharmacist@horalix.health  / password123
+Admin:       admin@horalix.health       / password123
+```
+
+**Test Patients** (pre-seeded):
+- Amar Begović (National ID: 1234567890123) - Adult with penicillin allergy
+- Lejla Hasanović (National ID: 9876543210987) - Pregnant woman
+- Tarik Muratović (National ID: 5555555555555) - Pediatric patient (8 years old)
 
 ## 📖 API Documentation
 
