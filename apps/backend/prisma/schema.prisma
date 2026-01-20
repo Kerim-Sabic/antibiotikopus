@@ -1,0 +1,644 @@
+// Horalix Database Schema
+// Hospital-grade drug prescribing platform with antibiotic stewardship
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// AUTHENTICATION & USERS
+// ============================================================================
+
+enum UserRole {
+  DOCTOR
+  NURSE
+  PHARMACIST
+  ADMIN
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String
+  role              UserRole
+  firstName         String
+  lastName          String
+  licenseNumber     String?   // Medical license number for doctors
+  department        String?
+  isActive          Boolean   @default(true)
+  twoFactorEnabled  Boolean   @default(false)
+  twoFactorSecret   String?   @db.Text
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  prescriptions     Prescription[]
+  auditLogs         AuditLog[]
+  medicationAdministrations MedicationAdministration[]
+  dispensings       Dispensing[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
+
+// ============================================================================
+// PATIENTS
+// ============================================================================
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNKNOWN
+}
+
+model Patient {
+  id                String    @id @default(cuid())
+  nationalId        String?   @unique // National healthcare ID
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime
+  gender            Gender
+  weight            Float?    // kg
+  height            Float?    // cm
+  bsa               Float?    // Body Surface Area (m²)
+
+  // Contact
+  phone             String?
+  email             String?
+  address           String?   @db.Text
+
+  // Clinical data
+  bloodType         String?
+  isPregnant        Boolean   @default(false)
+  isLactating       Boolean   @default(false)
+
+  // Organ function
+  renalFunction     Float?    // eGFR/CrCl (mL/min)
+  hepaticFunction   String?   // Normal, Mild, Moderate, Severe
+
+  // Privacy
+  consentGiven      Boolean   @default(false)
+  dataRetention     DateTime? // When to delete data (GDPR)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  allergies         Allergy[]
+  conditions        PatientCondition[]
+  prescriptions     Prescription[]
+  vitalSigns        VitalSign[]
+  labResults        LabResult[]
+
+  @@index([nationalId])
+  @@index([lastName, firstName])
+  @@map("patients")
+}
+
+model Allergy {
+  id                String    @id @default(cuid())
+  patientId         String
+  patient           Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  allergen          String    // Drug name or class
+  allergenType      String    // DRUG, FOOD, ENVIRONMENT
+  reaction          String    // Description of reaction
+  severity          String    // MILD, MODERATE, SEVERE, LIFE_THREATENING
+
+  verifiedBy        String?   // Who verified this allergy
+  verifiedAt        DateTime?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([patientId])
+  @@map("allergies")
+}
+
+model PatientCondition {
+  id                String    @id @default(cuid())
+  patientId         String
+  patient           Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  diagnosisCode     String    // ICD-10 code
+  diagnosisName     String
+  severity          String?
+  isActive          Boolean   @default(true)
+  onsetDate         DateTime?
+  resolvedDate      DateTime?
+
+  notes             String?   @db.Text
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([patientId])
+  @@index([diagnosisCode])
+  @@map("patient_conditions")
+}
+
+model VitalSign {
+  id                String    @id @default(cuid())
+  patientId         String
+  patient           Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  temperature       Float?    // Celsius
+  heartRate         Int?      // bpm
+  bloodPressureSys  Int?      // mmHg
+  bloodPressureDia  Int?      // mmHg
+  respiratoryRate   Int?      // breaths/min
+  oxygenSaturation  Float?    // %
+
+  measuredAt        DateTime  @default(now())
+  measuredBy        String?
+
+  @@index([patientId])
+  @@index([measuredAt])
+  @@map("vital_signs")
+}
+
+model LabResult {
+  id                String    @id @default(cuid())
+  patientId         String
+  patient           Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  testName          String
+  testCode          String?   // LOINC code
+  value             String
+  unit              String?
+  referenceRange    String?
+  isAbnormal        Boolean   @default(false)
+
+  collectedAt       DateTime
+  resultedAt        DateTime  @default(now())
+
+  notes             String?   @db.Text
+
+  @@index([patientId])
+  @@index([testCode])
+  @@map("lab_results")
+}
+
+// ============================================================================
+// MEDICATIONS & FORMULARY
+// ============================================================================
+
+enum AWaReCategory {
+  ACCESS    // First-line, low resistance risk
+  WATCH     // Broader spectrum, higher resistance risk
+  RESERVE   // Last resort, highest resistance risk
+  NOT_APPLICABLE // Not an antibiotic
+}
+
+model Medication {
+  id                String          @id @default(cuid())
+
+  // Drug identification
+  genericName       String
+  brandName         String?
+
+  // Classification
+  atcCode           String?         // Anatomical Therapeutic Chemical code
+  awaRe             AWaReCategory   @default(NOT_APPLICABLE)
+  isAntibiotic      Boolean         @default(false)
+  therapeuticClass  String?
+
+  // Formulation
+  dosageForm        String          // tablet, injection, syrup, etc.
+  strength          String          // e.g., "500mg", "5mg/mL"
+  route             String          // oral, IV, IM, etc.
+
+  // Bosnia-specific
+  registrationNumber String?        @unique
+  prescriptionCategory String?      // Rp, BRp, ZU
+  manufacturer      String?
+  packagingInfo     String?         @db.Text
+
+  // Clinical info
+  indication        String?         @db.Text
+  contraindications String?         @db.Text
+  sideEffects       String?         @db.Text
+
+  // Metadata
+  isActive          Boolean         @default(true)
+  formularyVersion  String?         // e.g., "2025"
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  prescriptionItems PrescriptionItem[]
+  interactions      DrugInteraction[] @relation("drug1")
+  interactedBy      DrugInteraction[] @relation("drug2")
+
+  @@index([genericName])
+  @@index([atcCode])
+  @@index([awaRe])
+  @@index([isAntibiotic])
+  @@map("medications")
+}
+
+enum InteractionSeverity {
+  MINOR
+  MODERATE
+  MAJOR
+  CONTRAINDICATED
+}
+
+model DrugInteraction {
+  id                String                @id @default(cuid())
+
+  drug1Id           String
+  drug1             Medication            @relation("drug1", fields: [drug1Id], references: [id], onDelete: Cascade)
+
+  drug2Id           String
+  drug2             Medication            @relation("drug2", fields: [drug2Id], references: [id], onDelete: Cascade)
+
+  severity          InteractionSeverity
+  description       String                @db.Text
+  clinicalEffect    String?               @db.Text
+  management        String?               @db.Text
+
+  source            String?               // Reference source
+
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@unique([drug1Id, drug2Id])
+  @@index([drug1Id])
+  @@index([drug2Id])
+  @@index([severity])
+  @@map("drug_interactions")
+}
+
+// ============================================================================
+// PRESCRIPTIONS
+// ============================================================================
+
+enum PrescriptionStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+model Prescription {
+  id                String              @id @default(cuid())
+
+  patientId         String
+  patient           Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  prescriberId      String
+  prescriber        User                @relation(fields: [prescriberId], references: [id])
+
+  status            PrescriptionStatus  @default(DRAFT)
+
+  // Clinical context
+  diagnosis         String?
+  diagnosisCode     String?             // ICD-10
+  indication        String?             @db.Text
+
+  // Metadata
+  prescribedAt      DateTime            @default(now())
+  startDate         DateTime?
+  endDate           DateTime?
+
+  // Decision support
+  recommendationUsed Boolean            @default(false)
+  rulesApplied      Json?               // Which rules were applied
+  alertsOverridden  Json?               // Which alerts were overridden and why
+
+  notes             String?             @db.Text
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  items             PrescriptionItem[]
+  alerts            PrescriptionAlert[]
+  dispensings       Dispensing[]
+
+  @@index([patientId])
+  @@index([prescriberId])
+  @@index([status])
+  @@index([prescribedAt])
+  @@map("prescriptions")
+}
+
+model PrescriptionItem {
+  id                String        @id @default(cuid())
+
+  prescriptionId    String
+  prescription      Prescription  @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  medicationId      String
+  medication        Medication    @relation(fields: [medicationId], references: [id])
+
+  // Dosing
+  dose              String        // e.g., "500mg"
+  frequency         String        // e.g., "BID", "TID", "Q6H"
+  route             String        // oral, IV, etc.
+  duration          String?       // e.g., "7 days"
+
+  // Instructions
+  instructions      String?       @db.Text
+  prn               Boolean       @default(false) // As needed
+
+  // Rationale (for explainability)
+  rationale         String?       @db.Text
+  isFirstLine       Boolean       @default(true)
+  alternativeReason String?       @db.Text // Why if not first-line
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relations
+  administrations   MedicationAdministration[]
+
+  @@index([prescriptionId])
+  @@index([medicationId])
+  @@map("prescription_items")
+}
+
+enum AlertType {
+  ALLERGY
+  DRUG_INTERACTION
+  CONTRAINDICATION
+  DUPLICATE_THERAPY
+  DOSE_RANGE
+  RENAL_ADJUSTMENT
+  HEPATIC_ADJUSTMENT
+  PREGNANCY_WARNING
+  LACTATION_WARNING
+  AGE_WARNING
+  STEWARDSHIP_ALERT
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model PrescriptionAlert {
+  id                String          @id @default(cuid())
+
+  prescriptionId    String
+  prescription      Prescription    @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  type              AlertType
+  severity          AlertSeverity
+
+  message           String          @db.Text
+  clinicalRationale String?         @db.Text
+  recommendation    String?         @db.Text
+
+  isOverridden      Boolean         @default(false)
+  overrideReason    String?         @db.Text
+  overriddenAt      DateTime?
+  overriddenBy      String?
+
+  createdAt         DateTime        @default(now())
+
+  @@index([prescriptionId])
+  @@index([type])
+  @@index([severity])
+  @@map("prescription_alerts")
+}
+
+// ============================================================================
+// MEDICATION ADMINISTRATION (Nursing)
+// ============================================================================
+
+enum AdministrationStatus {
+  SCHEDULED
+  ADMINISTERED
+  MISSED
+  REFUSED
+  HELD
+}
+
+model MedicationAdministration {
+  id                String                @id @default(cuid())
+
+  prescriptionItemId String
+  prescriptionItem  PrescriptionItem      @relation(fields: [prescriptionItemId], references: [id], onDelete: Cascade)
+
+  scheduledTime     DateTime
+  administeredTime  DateTime?
+
+  status            AdministrationStatus  @default(SCHEDULED)
+
+  administeredBy    String?
+  nurse             User?                 @relation(fields: [administeredBy], references: [id])
+
+  notes             String?               @db.Text
+  adverseEvent      String?               @db.Text
+
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@index([prescriptionItemId])
+  @@index([scheduledTime])
+  @@index([status])
+  @@map("medication_administrations")
+}
+
+// ============================================================================
+// PHARMACY & DISPENSING
+// ============================================================================
+
+enum DispensingStatus {
+  PENDING
+  IN_PROGRESS
+  DISPENSED
+  OUT_OF_STOCK
+  SUBSTITUTED
+  CANCELLED
+}
+
+model Dispensing {
+  id                String           @id @default(cuid())
+
+  prescriptionId    String
+  prescription      Prescription     @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  pharmacistId      String?
+  pharmacist        User?            @relation(fields: [pharmacistId], references: [id])
+
+  status            DispensingStatus @default(PENDING)
+
+  dispensedAt       DateTime?
+
+  substitutionMade  Boolean          @default(false)
+  substitutionNotes String?          @db.Text
+
+  notes             String?          @db.Text
+
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([prescriptionId])
+  @@index([pharmacistId])
+  @@index([status])
+  @@map("dispensings")
+}
+
+// ============================================================================
+// CLINICAL RULES & GUIDELINES
+// ============================================================================
+
+model ClinicalRule {
+  id                String    @id @default(cuid())
+
+  name              String
+  description       String    @db.Text
+
+  // Condition matching
+  diagnosisCodes    String[]  // ICD-10 codes this applies to
+  patientCriteria   Json?     // Age range, weight, etc.
+
+  // Recommendation
+  recommendedDrugId String?
+  firstLineChoice   Json      // Drug IDs and dosing
+  alternatives      Json?     // Alternative drugs with reasons
+
+  // Stewardship
+  awaRePreference   AWaReCategory?
+
+  // Source & validity
+  guidelineSource   String?   // WHO, IDSA, local guideline
+  evidenceLevel     String?   // A, B, C
+
+  isActive          Boolean   @default(true)
+  version           String    @default("1.0")
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([diagnosisCodes])
+  @@map("clinical_rules")
+}
+
+// ============================================================================
+// AUDIT & COMPLIANCE
+// ============================================================================
+
+enum AuditAction {
+  USER_LOGIN
+  USER_LOGOUT
+  PRESCRIPTION_CREATE
+  PRESCRIPTION_UPDATE
+  PRESCRIPTION_DELETE
+  ALERT_OVERRIDE
+  MEDICATION_DISPENSE
+  MEDICATION_ADMINISTER
+  PATIENT_VIEW
+  PATIENT_CREATE
+  PATIENT_UPDATE
+  SYSTEM_CONFIG_CHANGE
+  DATA_EXPORT
+  DATA_DELETE
+}
+
+model AuditLog {
+  id                String      @id @default(cuid())
+
+  userId            String?
+  user              User?       @relation(fields: [userId], references: [id])
+
+  action            AuditAction
+  resourceType      String?     // Patient, Prescription, etc.
+  resourceId        String?
+
+  details           Json?
+
+  ipAddress         String?
+  userAgent         String?
+
+  timestamp         DateTime    @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// SYSTEM CONFIGURATION
+// ============================================================================
+
+model SystemConfig {
+  id                String    @id @default(cuid())
+
+  key               String    @unique
+  value             Json
+
+  description       String?   @db.Text
+
+  updatedAt         DateTime  @updatedAt
+  updatedBy         String?
+
+  @@map("system_config")
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+enum NotificationType {
+  MEDICATION_DUE
+  MEDICATION_MISSED
+  ADVERSE_EVENT
+  CRITICAL_ALERT
+  PRESCRIPTION_READY
+  LAB_RESULT_CRITICAL
+}
+
+model Notification {
+  id                String            @id @default(cuid())
+
+  userId            String
+
+  type              NotificationType
+  title             String
+  message           String            @db.Text
+
+  relatedResourceType String?
+  relatedResourceId   String?
+
+  isRead            Boolean           @default(false)
+  readAt            DateTime?
+
+  createdAt         DateTime          @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
