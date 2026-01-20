@@ -1,0 +1,30 @@
+{
+  "name": "horalix",
+  "version": "1.0.0",
+  "description": "Hospital-grade platform for safe, fast, and explainable drug prescribing",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "backend:dev": "npm run dev --workspace=apps/backend",
+    "web:dev": "npm run dev --workspace=apps/web",
+    "mobile:dev": "npm run dev --workspace=apps/mobile"
+  },
+  "devDependencies": {
+    "turbo": "^1.13.0",
+    "typescript": "^5.3.3",
+    "prettier": "^3.2.5"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
